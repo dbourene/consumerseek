@@ -1,10 +1,9 @@
 export interface Commune {
-  id: string;
-  nom: string;
-  code: string;
-  densite: number;
-  latitude: number;
-  longitude: number;
+  codgeo: string;
+  nom_commune: string;
+  dens7: number;
+  libdens7: string;
+  code_epci: string | null;
   geomgeo: GeoJSON.Geometry | null;
 }
 

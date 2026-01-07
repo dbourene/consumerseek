@@ -6,6 +6,7 @@
     - This allows the function to bypass RLS and execute with owner permissions
 */
 
+-- Supprime l'ancienne fonction si elle existe
 DROP FUNCTION IF EXISTS rpc_communes_autour_installation(double precision, double precision);
 
 CREATE OR REPLACE FUNCTION rpc_communes_autour_installation(
@@ -22,7 +23,7 @@ DECLARE
   v_rayon double precision;
   v_result json;
 BEGIN
-  -- Trouver la commune de l'installation (commune la plus proche)
+  -- Trouver la commune la plus proche de l'installation
   SELECT 
     id,
     nom,
@@ -30,11 +31,7 @@ BEGIN
     densite,
     latitude,
     longitude,
-    ST_AsGeoJSON(geom)::json as geomgeo,
-    ST_Distance(
-      ST_SetSRID(ST_MakePoint(p_lon, p_lat), 4326)::geography,
-      ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography
-    ) as distance
+    ST_AsGeoJSON(geom)::json as geomgeo
   INTO v_commune_installation
   FROM communes
   ORDER BY ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography <-> 
@@ -79,10 +76,12 @@ BEGIN
           )
         )
         FROM communes c
-        WHERE ST_DWithin(
-          ST_SetSRID(ST_MakePoint(c.longitude, c.latitude), 4326)::geography,
-          ST_SetSRID(ST_MakePoint(p_lon, p_lat), 4326)::geography,
-          v_rayon
+        WHERE ST_Intersects(
+          c.geom,
+          ST_Buffer(
+            ST_SetSRID(ST_MakePoint(p_lon, p_lat), 4326)::geography,
+            v_rayon
+          )::geometry
         )
         AND c.code != v_commune_installation.code
       ),

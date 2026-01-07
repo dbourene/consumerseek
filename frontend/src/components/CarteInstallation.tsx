@@ -106,7 +106,7 @@ export default function CarteInstallation({
               ...resultat.communes_dans_rayon,
             ]}
             transparence={transparence}
-            highlight={resultat.commune_installation?.id}
+            highlight={resultat.commune_installation?.codgeo}
           />
         </MapContainer>
 
@@ -175,7 +175,7 @@ export default function CarteInstallation({
           {resultat.commune_installation && (
             <div className="mt-3 pt-3 border-t border-slate-200">
               <p className="text-xs text-slate-600">
-                <strong>Installation:</strong> {resultat.commune_installation.nom}
+                <strong>Installation:</strong> {resultat.commune_installation.nom_commune}
               </p>
               <p className="text-xs text-slate-600">
                 <strong>Rayon:</strong> {(rayon / 1000).toFixed(0)} km

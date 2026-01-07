@@ -24,20 +24,20 @@ export default function CommunesLayer({ communes, transparence, highlight }: Com
 
   useEffect(() => {
     console.log('CommunesLayer - Nombre de communes reçues:', communes.length);
-    console.log('CommunesLayer - Communes:', communes.map(c => ({ nom: c.nom, hasGeom: !!c.geomgeo })));
+    console.log('CommunesLayer - Communes:', communes.map(c => ({ nom: c.nom_commune, hasGeom: !!c.geomgeo })));
 
     const layers: L.GeoJSON[] = [];
 
     communes.forEach((commune) => {
       if (!commune.geomgeo) {
-        console.log('CommunesLayer - Commune sans geomgeo:', commune.nom);
+        console.log('CommunesLayer - Commune sans geomgeo:', commune.nom_commune);
         return;
       }
 
-      console.log('CommunesLayer - Ajout de la commune:', commune.nom, commune.geomgeo);
+      console.log('CommunesLayer - Ajout de la commune:', commune.nom_commune, commune.geomgeo);
 
-      const couleurs = getCouleurDensite(commune.densite);
-      const isHighlight = highlight === commune.id;
+      const couleurs = getCouleurDensite(commune.dens7);
+      const isHighlight = highlight === commune.codgeo;
 
       const layer = L.geoJSON(commune.geomgeo as any, {
         style: {
@@ -50,10 +50,10 @@ export default function CommunesLayer({ communes, transparence, highlight }: Com
         onEachFeature: (feature, layer) => {
           layer.bindPopup(`
             <div style="font-family: sans-serif;">
-              <strong style="font-size: 1.125rem;">${commune.nom}</strong><br/>
+              <strong style="font-size: 1.125rem;">${commune.nom_commune}</strong><br/>
               ${isHighlight ? '<span style="color: #2563eb; font-weight: 600;">Commune d\'installation</span><br/>' : ''}
-              Code: ${commune.code}<br/>
-              Densité: ${commune.densite}
+              Code: ${commune.codgeo}<br/>
+              Densité: ${commune.dens7} - ${commune.libdens7}
             </div>
           `);
         },

@@ -109,39 +109,74 @@ export default function FormulaireRecherche({ onResultat }: FormulaireRechercheP
   };
 
   const rechercherCommunes = async (lat: number, lon: number) => {
-    const { data, error: rpcError } = await supabase.rpc('rpc_communes_autour_installation', {
-      p_lat: lat,
-      p_lon: lon,
+    console.log('=== DÉBUT RECHERCHE ===');
+    console.log('Coordonnées envoyées à la fonction RPC:');
+    console.log('  - Latitude:', lat);
+    console.log('  - Longitude:', lon);
+
+    // Vérifier l'authentification
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    console.log('Session actuelle:', {
+      authenticated: !!sessionData?.session,
+      user: sessionData?.session?.user?.email,
+      error: sessionError
     });
 
-    if (rpcError) {
-      throw new Error(`Erreur lors de la recherche: ${rpcError.message}`);
+    // Appel RPC
+    console.log('Appel RPC avec paramètres:', { p_lat: lat, p_lon: lon });
+    const { data, error } = await supabase.rpc(
+      'rpc_communes_autour_installation',
+      {
+        p_lat: lat,
+        p_lon: lon,
+      }
+    );
+
+    console.log('Réponse brute de Supabase:');
+    console.log('  - data type:', typeof data);
+    console.log('  - data:', JSON.stringify(data, null, 2));
+    console.log('  - error:', error);
+
+    if (error) {
+      console.error('ERREUR RPC:', error);
+      throw new Error(error.message);
     }
 
     if (!data) {
-      throw new Error('Aucune donnée retournée');
+      console.error('DATA EST NULL OU UNDEFINED');
+      throw new Error('Aucune donnée retournée par la fonction RPC');
     }
 
-    console.log('Données brutes du RPC:', JSON.stringify(data, null, 2));
-
-    let resultat = data;
-
-    // Le RPC peut retourner les données de différentes manières selon le client
-    if (Array.isArray(data) && data.length > 0) {
-      resultat = data[0];
+    if (typeof data !== 'object') {
+      console.error('DATA N\'EST PAS UN OBJET:', typeof data, data);
+      throw new Error('Format de données invalide');
     }
 
-    // Si le résultat contient une clé avec le nom de la fonction RPC, extraire son contenu
-    if (resultat && typeof resultat === 'object' && 'rpc_communes_autour_installation' in resultat) {
-      resultat = (resultat as any).rpc_communes_autour_installation;
+    const resultat = data as ResultatRPC;
+    console.log('Résultat:', JSON.stringify(resultat, null, 2));
+
+    if (!resultat.commune_installation) {
+      throw new Error('Aucune commune trouvée à ces coordonnées');
     }
 
-    console.log('Résultat après extraction:', resultat);
-    console.log('Nombre de communes:', resultat?.communes_dans_rayon?.length);
-
-    if (resultat?.communes_dans_rayon?.[0]?.geomgeo) {
-      console.log('Exemple de geomgeo:', resultat.communes_dans_rayon[0].geomgeo);
+    if (!Array.isArray(resultat.communes_dans_rayon)) {
+      console.error('communes_dans_rayon n\'est pas un tableau:', resultat.communes_dans_rayon);
+      throw new Error('Format de données invalide pour communes_dans_rayon');
     }
+
+    console.log('=== RÉSULTAT RPC EXTRAIT ===');
+    console.log('Commune d\'installation:', {
+      nom: resultat.commune_installation.nom_commune,
+      code: resultat.commune_installation.codgeo,
+      densite: resultat.commune_installation.dens7,
+      libdens7: resultat.commune_installation.libdens7
+    });
+    console.log('Rayon calculé:', resultat.rayon, 'mètres');
+    console.log('Nombre de communes dans le rayon:', resultat.communes_dans_rayon.length);
+    console.log('Liste des communes dans le rayon:',
+      resultat.communes_dans_rayon.map((c: any) => `${c.nom_commune} (${c.codgeo})`).join(', ')
+    );
+    console.log('=== FIN RECHERCHE ===');
 
     return resultat as ResultatRPC;
   };
