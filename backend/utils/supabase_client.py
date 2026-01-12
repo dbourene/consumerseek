@@ -4,6 +4,9 @@
 from supabase import create_client, Client
 import os
 
+print("SUPABASE_URL =", os.getenv("SUPABASE_URL"))
+print("SUPABASE_KEY =", "SET" if os.getenv("SUPABASE_KEY") else "MISSING")
+
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")  # clé service role
 
