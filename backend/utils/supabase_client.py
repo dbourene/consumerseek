@@ -1,22 +1,35 @@
 # backend/utils/supabase_client.py
 # Supabase client configuration and utility functions
 
-from supabase import create_client, Client
 import os
+from supabase import create_client, Client
 
-print("SUPABASE_URL =", os.getenv("SUPABASE_URL"))
-print("SUPABASE_KEY =", "SET" if os.getenv("SUPABASE_KEY") else "MISSING")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")  # clé service role
+if not SUPABASE_URL:
+    raise RuntimeError("SUPABASE_URL is missing")
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+if not SUPABASE_KEY or not SUPABASE_KEY.strip():
+    raise RuntimeError("SUPABASE_KEY is missing or empty")
 
-def update_consommateur_geocode(id, lat, lon, status, score):
-    supabase.table("consommateurs").update({
-        "latitude": lat,
-        "longitude": lon,
-        "geom_point": f"POINT({lon} {lat})",
-        "geocode_status": status,
-        "geocode_score": score
-    }).eq("id", id).execute()
+# Sécurisation contre espaces / retours ligne
+SUPABASE_KEY = SUPABASE_KEY.strip()
+
+supabase: Client = create_client(
+    supabase_url=SUPABASE_URL,
+    supabase_key=SUPABASE_KEY
+)
+
+def update_consommateur_geocode(consommateur_id: int, lat: float, lon: float):
+    return (
+        supabase
+        .table("consommateurs")
+        .update({
+            "latitude": lat,
+            "longitude": lon,
+            "geocode_status": "OK"
+        })
+        .eq("id", consommateur_id)
+        .execute()
+    )
