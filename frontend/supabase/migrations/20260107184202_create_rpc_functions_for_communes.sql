@@ -3,13 +3,13 @@
 
   1. Nouvelles Fonctions
     - `get_rayon_densite(dens7)` - Calcule le rayon de recherche selon la densité (1-7)
-      - Densité 1 (Urbain dense) : 5 km
-      - Densité 2 (Urbain) : 10 km
-      - Densité 3 (Ceinture urbaine) : 15 km
-      - Densité 4 (Rural) : 20 km
-      - Densité 5 (Rural) : 25 km
-      - Densité 6 (Rural dispersé) : 30 km
-      - Densité 7 (Rural très dispersé) : 40 km
+      - Densité 1 (Grands centres urbains) : 3 km
+      - Densité 2 (Centres urbains intermédiaires) : 5 km
+      - Densité 3 (Petites villes) : 8 km
+      - Densité 4 (Ceintures urbaines) : 10 km
+      - Densité 5 (Bourgs ruraux) : 15 km
+      - Densité 6 (Rural à habitat dispersé) : 25 km
+      - Densité 7 (Rural à habitat très dispersé) : 40 km
     
     - `rpc_communes_autour_installation(p_lat, p_lon)` - Trouve les communes dans un rayon
       - Identifie la commune contenant le point d'installation
@@ -29,14 +29,14 @@ IMMUTABLE
 AS $$
 BEGIN
   RETURN CASE
-    WHEN densite = 1 THEN 5000
-    WHEN densite = 2 THEN 10000
-    WHEN densite = 3 THEN 15000
-    WHEN densite = 4 THEN 20000
-    WHEN densite = 5 THEN 25000
-    WHEN densite = 6 THEN 30000
+    WHEN densite = 1 THEN 3000
+    WHEN densite = 2 THEN 5000
+    WHEN densite = 3 THEN 8000
+    WHEN densite = 4 THEN 10000
+    WHEN densite = 5 THEN 15000
+    WHEN densite = 6 THEN 25000
     WHEN densite = 7 THEN 40000
-    ELSE 20000
+    ELSE 15000
   END;
 END;
 $$;

@@ -1,0 +1,4 @@
+nom;commune;code_commune;latitude;longitude;code_station;type_station;capacite_eh;adresse
+Station d'épuration de Neufchâtel-en-Bray;Neufchâtel-en-Bray;76462;49.7362;1.4428;STEP_76462_001;STEP;15000;Route de Dieppe
+Station de pompage Les Éclusiers;Rouen;76540;49.4432;1.0993;POMP_76540_001;Pompage;5000;Quai des Éclusiers
+Station de traitement de Saint-Étienne-du-Rouvray;Saint-Étienne-du-Rouvray;76575;49.3845;1.0925;STEP_76575_001;STEP;25000;Rue de la Station

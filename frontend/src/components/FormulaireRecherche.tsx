@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { MapPin, Search, Loader2 } from 'lucide-react';
+import { MapPin, Search, Loader2, List } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { ResultatRPC } from '../types/commune';
 
 interface FormulaireRechercheProps {
-  onResultat: (resultat: ResultatRPC, lat: number, lon: number) => void;
+  onResultat: (resultat: ResultatRPC, lat: number, lon: number, marge: number) => void;
+  onShowExistingInstallations?: () => void;
 }
 
 interface SuggestionAdresse {
@@ -13,10 +14,11 @@ interface SuggestionAdresse {
   lon: number;
 }
 
-export default function FormulaireRecherche({ onResultat }: FormulaireRechercheProps) {
+export default function FormulaireRecherche({ onResultat, onShowExistingInstallations }: FormulaireRechercheProps) {
   const [adresse, setAdresse] = useState('');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
+  const [marge, setMarge] = useState('200');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<SuggestionAdresse[]>([]);
@@ -208,7 +210,8 @@ export default function FormulaireRecherche({ onResultat }: FormulaireRechercheP
       }
 
       const resultat = await rechercherCommunes(lat, lon);
-      onResultat(resultat, lat, lon);
+      const margeMetres = parseFloat(marge) || 200;
+      onResultat(resultat, lat, lon, margeMetres);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue');
     } finally {
@@ -218,7 +221,19 @@ export default function FormulaireRecherche({ onResultat }: FormulaireRechercheP
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-      <h2 className="text-2xl font-bold text-slate-900 mb-4">Rechercher une installation</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-bold text-slate-900">Rechercher une installation</h2>
+        {onShowExistingInstallations && (
+          <button
+            type="button"
+            onClick={onShowExistingInstallations}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium shadow-md"
+          >
+            <List className="w-5 h-5" />
+            Installations existantes
+          </button>
+        )}
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -293,6 +308,24 @@ export default function FormulaireRecherche({ onResultat }: FormulaireRechercheP
               />
             </div>
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Marge de sécurité (mètres)
+          </label>
+          <input
+            type="number"
+            value={marge}
+            onChange={(e) => setMarge(e.target.value)}
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+            placeholder="200"
+            min="0"
+            step="10"
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            Distance additionnelle au-delà du rayon pour tenir compte d'imprécisions d'adresses
+          </p>
         </div>
 
         {error && (

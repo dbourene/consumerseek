@@ -1,3 +1,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.custom-marker-icon {
+  background: none !important;
+  border: none !important;
+}
