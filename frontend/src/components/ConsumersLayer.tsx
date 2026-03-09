@@ -241,6 +241,21 @@ export default function ConsumersLayer({
 
       console.log(`\n📦 Total données filtrées: ${allFilteredData.length}`);
 
+      // Logs détaillés pour comprendre la différence nombre de consommateurs vs nombre de sites
+      const sitesParConsommateur = allFilteredData.map(d => (d as any).nombre_sites || (d as any).nb_sites || 1);
+      const totalSitesCalculated = sitesParConsommateur.reduce((sum, n) => sum + n, 0);
+      const consommateursMultiSites = allFilteredData.filter(d => ((d as any).nombre_sites || (d as any).nb_sites || 1) > 1);
+      console.log(`\n🔍 ANALYSE SITES:`);
+      console.log(`  → ${allFilteredData.length} consommateurs (lignes)`);
+      console.log(`  → ${totalSitesCalculated} sites au total (somme nombre_sites)`);
+      console.log(`  → ${consommateursMultiSites.length} consommateurs avec plusieurs sites`);
+      if (consommateursMultiSites.length > 0) {
+        console.log(`  → Exemples multi-sites:`, consommateursMultiSites.slice(0, 3).map(d => ({
+          adresse: (d as any).adresse,
+          nombre_sites: (d as any).nombre_sites || (d as any).nb_sites
+        })));
+      }
+
       let aggregatedData = allFilteredData;
       if (aggregationLevel === 'global') {
         aggregatedData = await aggregateByInstallation(allFilteredData);
@@ -251,8 +266,9 @@ export default function ConsumersLayer({
 
       displayCircles(aggregatedData);
 
-      const totalSites = allFilteredData.reduce((sum, d) => sum + d.nb_sites, 0);
-      const totalConso = allFilteredData.reduce((sum, d) => sum + d.conso_totale_mwh, 0);
+      // Calculer le nombre total de sites et la consommation totale
+      const totalSites = allFilteredData.reduce((sum, d) => sum + ((d as any).nombre_sites || (d as any).nb_sites || 1), 0);
+      const totalConso = allFilteredData.reduce((sum, d) => sum + ((d as any).consommation_annuelle_mwh || (d as any).conso_totale_mwh || 0), 0);
       console.log(`\n📊 STATS TOTALES: ${totalSites} sites, ${totalConso.toFixed(2)} MWh`);
       console.log('✅ FIN\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
@@ -405,7 +421,7 @@ export default function ConsumersLayer({
     const aggregated: ConsoAggregate[] = [];
 
     activeInstallations.forEach(installation => {
-      const rayonMetres = installation.rayon_densite_reglementaire;
+      const rayonMetres = installation.rayon || 20000;
 
       const consumersInRadius = data.filter(consumer => {
         if (!consumer.latitude || !consumer.longitude) return false;
@@ -423,7 +439,7 @@ export default function ConsumersLayer({
         const totalConso = consumersInRadius.reduce((sum, c) => sum + (c.conso_totale_mwh || 0), 0);
 
         aggregated.push({
-          code_commune: null,
+          code_commune: undefined,
           nom_commune: installation.nom,
           annee: 2024,
           tranche_conso: '',

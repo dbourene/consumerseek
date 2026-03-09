@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { LogOut, MapPin, Circle, FileText } from 'lucide-react';
+import { LogOut, MapPin, Circle, FileText, TrendingUp, UserCheck, Download } from 'lucide-react';
 import FormulaireRecherche from './FormulaireRecherche';
 import CarteInstallation from './CarteInstallation';
 import ConsumersIndicators from './ConsumersIndicators';
@@ -12,10 +12,16 @@ import SelectInstallationsForGeocodingModal from './SelectInstallationsForGeocod
 import TreatmentStationsImport from './TreatmentStationsImport';
 import OnDemandLoadingModal from './OnDemandLoadingModal';
 import ConsumerStat from './ConsumerStat';
+import PVAnalysis from './PVAnalysis';
+import { SireneOperationsPanel } from './SireneOperationsPanel';
+import AuditEnedisExport from './AuditEnedisExport';
 import { ResultatRPC } from '../types/commune';
 import { TrancheConso, CategorieActivite, TRANCHES_CONSO, CATEGORIES_ACTIVITE, Consommateur } from '../types/consommateur';
-import { isAddressGeocoded, GeocodeResult } from '../services/geocoding';
+import { GeocodeResult } from '../services/geocoding';
 import { Installation, ActiveInstallation } from '../types/installation';
+import { loadFilteredConsumers } from '../services/pvConsumersLoader';
+import { exportConsumersToCSV } from '../services/csvExport';
+import { exportToKML } from '../services/kmlExport';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -39,21 +45,69 @@ export default function Dashboard({ onLogout, onTestUpload }: DashboardProps) {
   const [activeInstallations, setActiveInstallations] = useState<ActiveInstallation[]>([]);
   const [installationsForGeocoding, setInstallationsForGeocoding] = useState<ActiveInstallation[]>([]);
   const [showStationsImport, setShowStationsImport] = useState(false);
+  const [showAuditExport, setShowAuditExport] = useState(false);
   const [showLoadingModal, setShowLoadingModal] = useState(false);
   const [pendingSearch, setPendingSearch] = useState<{ resultat: ResultatRPC; lat: number; lon: number; marge: number } | null>(null);
   const [geocodingRefreshKey, setGeocodingRefreshKey] = useState(0);
   const [circleFilterActive, setCircleFilterActive] = useState(false);
   const [circleFilterPosition, setCircleFilterPosition] = useState<[number, number] | null>(null);
   const [showConsumerStat, setShowConsumerStat] = useState(false);
+  const [activeTab, setActiveTab] = useState<'pv-analysis' | 'identification'>('pv-analysis');
+  const [filteredConsumers, setFilteredConsumers] = useState<Consommateur[]>([]);
+  const [selectedCommuneCodes, setSelectedCommuneCodes] = useState<string[]>([]);
 
   useEffect(() => {
     loadActiveInstallations();
   }, [selectedInstallationIds]);
 
+  useEffect(() => {
+    const loadConsumersForPVAnalysis = async () => {
+      console.log('🔄 Dashboard - Rechargement des consommateurs filtrés (geocodingRefreshKey:', geocodingRefreshKey, ')');
+      console.log('   Params:', {
+        communeCodes: selectedCommuneCodes.length,
+        tranches: selectedTranches.size,
+        categories: selectedCategories.size,
+        installations: activeInstallations.length,
+        circleFilterActive,
+      });
+
+      const consumers = await loadFilteredConsumers({
+        selectedCommuneCodes,
+        selectedTranches,
+        selectedCategories,
+        activeInstallations,
+        circleFilterActive,
+        circleFilterPosition,
+      });
+
+      console.log('✅ Dashboard - Consommateurs chargés:', consumers.length);
+      console.log('   Exemples (3 premiers):', consumers.slice(0, 3).map(c => ({
+        id: c.id,
+        adresse: c.adresse,
+        siren: c.siren,
+        siret: c.siret,
+        enrichi: !!(c.siren || c.siret)
+      })));
+
+      setFilteredConsumers(consumers);
+    };
+
+    loadConsumersForPVAnalysis();
+  }, [
+    selectedCommuneCodes,
+    selectedTranches,
+    selectedCategories,
+    activeInstallations,
+    circleFilterActive,
+    circleFilterPosition,
+    geocodingRefreshKey,
+  ]);
+
   const loadActiveInstallations = async () => {
     if (selectedInstallationIds.size === 0) {
       setActiveInstallations([]);
       setSelectedCommuneCodes([]);
+      setFailedAddresses([]);
       return;
     }
 
@@ -103,15 +157,19 @@ export default function Dashboard({ onLogout, onTestUpload }: DashboardProps) {
         return {
           ...installation,
           rayon: rpcData?.rayon || 20000,
-          marge: 200
+          marge: 200,
+          densite: rpcData?.commune_installation?.dens7 || 5
         };
       })
     );
 
     console.log('📍 Tous les codes communes collectés:', Array.from(allCommuneCodes));
 
+    const communeCodesArray = Array.from(allCommuneCodes);
     setActiveInstallations(installationsWithRadius);
-    setSelectedCommuneCodes(Array.from(allCommuneCodes));
+    setSelectedCommuneCodes(communeCodesArray);
+
+    await loadFailedAddresses(communeCodesArray);
   };
 
   const handleResultat = async (nouveauResultat: ResultatRPC, lat: number, lon: number, margeMetres: number) => {
@@ -121,11 +179,6 @@ export default function Dashboard({ onLogout, onTestUpload }: DashboardProps) {
     setFailedAddresses([]);
     setCircleFilterActive(false);
     setCircleFilterPosition(null);
-
-    const communeCodes = [
-      ...(nouveauResultat.commune_installation ? [nouveauResultat.commune_installation.codgeo] : []),
-      ...nouveauResultat.communes_dans_rayon.map(c => c.codgeo)
-    ];
 
     setPendingSearch({ resultat: nouveauResultat, lat, lon, marge: margeMetres });
     setShowLoadingModal(true);
@@ -193,8 +246,6 @@ export default function Dashboard({ onLogout, onTestUpload }: DashboardProps) {
     setConsommationAnnuelle(consoTotal);
   };
 
-  const [selectedCommuneCodes, setSelectedCommuneCodes] = useState<string[]>([]);
-
   const loadFailedAddresses = async (communeCodes: string[]) => {
     console.log('📋 loadFailedAddresses appelé avec:', communeCodes.length, 'codes communes');
 
@@ -248,7 +299,8 @@ export default function Dashboard({ onLogout, onTestUpload }: DashboardProps) {
         return {
           ...installation,
           rayon: rpcData?.rayon || 20000,
-          marge: 200
+          marge: 200,
+          densite: rpcData?.commune_installation?.dens7 || 5
         };
       })
     );
@@ -337,6 +389,33 @@ export default function Dashboard({ onLogout, onTestUpload }: DashboardProps) {
     }
   };
 
+  const handleExportCSV = async () => {
+    if (activeInstallations.length === 0) {
+      alert('Veuillez sélectionner au moins une installation pour exporter les données.');
+      return;
+    }
+
+    await exportConsumersToCSV({
+      selectedCommuneCodes,
+      selectedTranches,
+      selectedCategories,
+      activeInstallations,
+      circleFilterActive,
+      circleFilterPosition
+    });
+  };
+
+  const handleExportKML = async () => {
+    if (activeInstallations.length === 0) {
+      alert('Veuillez sélectionner au moins une installation pour exporter les géométries.');
+      return;
+    }
+
+    await exportToKML({
+      activeInstallations
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <header className="bg-white shadow-sm">
@@ -367,18 +446,34 @@ export default function Dashboard({ onLogout, onTestUpload }: DashboardProps) {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <button
-            onClick={() => setShowStationsImport(!showStationsImport)}
-            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-          >
-            {showStationsImport ? '− Masquer' : '+ Afficher'} l'import des stations de traitement
-          </button>
-          {showStationsImport && (
-            <div className="mt-4">
-              <TreatmentStationsImport />
-            </div>
-          )}
+        <div className="mb-6 space-y-4">
+          <div>
+            <button
+              onClick={() => setShowAuditExport(!showAuditExport)}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              {showAuditExport ? '− Masquer' : '+ Afficher'} l'export audit ENEDIS
+            </button>
+            {showAuditExport && (
+              <div className="mt-4">
+                <AuditEnedisExport />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <button
+              onClick={() => setShowStationsImport(!showStationsImport)}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              {showStationsImport ? '− Masquer' : '+ Afficher'} l'import des stations de traitement
+            </button>
+            {showStationsImport && (
+              <div className="mt-4">
+                <TreatmentStationsImport />
+              </div>
+            )}
+          </div>
         </div>
 
         <FormulaireRecherche
@@ -395,7 +490,25 @@ export default function Dashboard({ onLogout, onTestUpload }: DashboardProps) {
                 onSave={handleSaveInstallation}
                 canSave={!!(resultat && coordonnees)}
               />
-              <div className="flex gap-2">
+              <div className="flex items-center gap-3">
+                {activeInstallations.length >= 1 && (
+                  <>
+                    <button
+                      onClick={handleExportCSV}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium shadow-md bg-blue-600 text-white hover:bg-blue-700"
+                    >
+                      <Download className="w-5 h-5" />
+                      Exporter CSV
+                    </button>
+                    <button
+                      onClick={handleExportKML}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium shadow-md bg-purple-600 text-white hover:bg-purple-700"
+                    >
+                      <MapPin className="w-5 h-5" />
+                      Exporter géom
+                    </button>
+                  </>
+                )}
                 {activeInstallations.length === 1 && (
                   <button
                     onClick={handleToggleCircleFilter}
@@ -409,13 +522,6 @@ export default function Dashboard({ onLogout, onTestUpload }: DashboardProps) {
                     {circleFilterActive ? 'Désactiver le filtre' : 'Activer le filtre circulaire'}
                   </button>
                 )}
-                <button
-                  onClick={handleStartGeocoding}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-md"
-                >
-                  <MapPin className="w-5 h-5" />
-                  Géocoder les consommateurs
-                </button>
               </div>
             </div>
             <CarteInstallation
@@ -435,12 +541,54 @@ export default function Dashboard({ onLogout, onTestUpload }: DashboardProps) {
               circleFilterPosition={circleFilterPosition}
               onCircleFilterPositionChange={setCircleFilterPosition}
             />
-            {failedAddresses.length > 0 && (
-              <AddressCorrectionTable
-                invalidAddresses={failedAddresses}
-                onUpdate={handleAddressUpdate}
-              />
-            )}
+            <div className="mt-6">
+              <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="flex border-b border-gray-200">
+                  <button
+                    onClick={() => setActiveTab('pv-analysis')}
+                    className={`flex-1 px-6 py-4 text-base font-semibold transition-colors flex items-center justify-center gap-2 ${
+                      activeTab === 'pv-analysis'
+                        ? 'bg-blue-600 text-white border-b-2 border-blue-600'
+                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <TrendingUp className="w-5 h-5" />
+                    <span>Analyse du potentiel de consommation</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('identification')}
+                    className={`flex-1 px-6 py-4 text-base font-semibold transition-colors flex items-center justify-center gap-2 ${
+                      activeTab === 'identification'
+                        ? 'bg-blue-600 text-white border-b-2 border-blue-600'
+                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <UserCheck className="w-5 h-5" />
+                    <span>Identification des Consommateurs</span>
+                  </button>
+                </div>
+                <div className="p-6">
+                  {activeTab === 'pv-analysis' ? (
+                    <PVAnalysis consommateurs={filteredConsumers} />
+                  ) : (
+                    <>
+                      <SireneOperationsPanel
+                        selectedInstallations={activeInstallations.map(i => i.id)}
+                        onStartGeocoding={handleStartGeocoding}
+                      />
+                      {failedAddresses.length > 0 && (
+                        <div className="mt-6">
+                          <AddressCorrectionTable
+                            invalidAddresses={failedAddresses}
+                            onUpdate={handleAddressUpdate}
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
           </>
         ) : null}
 

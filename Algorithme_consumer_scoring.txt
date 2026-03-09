@@ -1,0 +1,288 @@
+Tu es un expert en analyse de données énergétiques et en autoconsommation photovoltaïque collective.
+
+
+Contexte :
+Cette application doit maintenant analyser la base de données des consommateurs sélectionnées sur la carte.
+Pour le moment nous ne traitons que le cas des entreprise, les consommateurs particuliers seront traité ultérieurement.
+Pour rappel, la table consommateurs possède les champs suivants :
+- id
+- code_secteur_naf2 (2 premiers chiffres du code NAF)
+- consommation_annuelle_kWh
+
+Objectif :
+Identifier et classer les entreprises ayant le plus fort potentiel pour consommer localement une production photovoltaïque, sans disposer de courbe de charge.
+
+
+Contraintes :
+- L’analyse doit se baser uniquement sur le NAF2 et la consommation annuelle.
+- Le résultat doit être un score normalisé entre 0 et 1.
+- Le modèle doit être explicable (pas de machine learning opaque).
+
+Méthodologie attendue :
+1. Associer à chaque NAF2 un score de stabilité de consommation (S_stab).
+2. Calculer un score de volume (S_vol) à partir de la consommation annuelle, plafonné à 1 pour 500 MWh/an.
+3. Associer à chaque NAF2 un score d’adéquation avec la production photovoltaïque (S_pv).
+4. Calculer un score global :
+score_PV = 0.4 × S_stab + 0.35 × S_vol + 0.25 × S_pv
+5. Trier les entreprises par Score_PV décroissant.
+6. Fournir en sortie :
+- id
+- code_secteur_naf2
+- consommation_annuelle_kWh
+- score_PV
+- catégorie de priorité (Très forte / Forte / Moyenne / Faible)
+
+NAF2 prioritaires et valeurs de référence :
+- 87 : S_stab 1.00 / S_pv 0.85
+- 55 : S_stab 0.95 / S_pv 1.00
+- 86 : S_stab 0.95 / S_pv 0.80
+- 10 : S_stab 0.90 / S_pv 0.85
+- 47 : S_stab 0.85 / S_pv 0.90
+- 93 : S_stab 0.80 / S_pv 1.00
+- autres : S_stab 0.50 / S_pv 0.50
+
+
+Livrable :
+Peux-tu proposer un tableau ou schéma intuitif représentant le résultat avec par exemple le nombre et la consommation par catégories et un scoring global.
+Sachant que ces éléments doivent être mis à jour de manière interactive à chaque déplacement de disque de sélection sur la carte et lorsque que celui-ci est sur off.
+
+As-tu des questions et besoin de précisions ?
+
+
+
+
+############ EXPLICATIONS
+
+1. Volumes de consommation typiques par NAF2 prioritaire
+Les fourchettes ci-dessous correspondent à des sites professionnels standards (pas des micro-établissements), raccordés en BT ou HTA, cohérents avec des projets PV 36 kWc → 3 MWc.
+
+55 – Hébergement
+	Consommation annuelle :
+		150 à 600 MWh/an (hôtel 30–100 chambres)
+		Jusqu’à 1 500 MWh/an pour établissements importants
+	Profil :
+		Charge de base élevée (ECS, froid, ventilation)
+		Été et week-end ≥ moyenne annuelle
+	Intérêt PV : ⭐⭐⭐⭐⭐
+
+87 – Hébergement médico-social
+	Consommation annuelle :
+		300 à 900 MWh/an (EHPAD 60–120 lits)
+	Profil :
+		Très stable 7j/7
+		Faible sensibilité saisonnière
+	Intérêt PV : ⭐⭐⭐⭐⭐ (profil “idéal”)
+
+86 – Santé humaine
+	Consommation annuelle :
+		500 à 2 000 MWh/an (cliniques, centres spécialisés)
+	Profil :
+		Base load très élevée
+		Continuité d’activité
+		Intérêt PV : ⭐⭐⭐⭐☆ (excellent mais décisionnel plus long)
+
+10 – Industries alimentaires
+	Consommation annuelle :
+		800 à 3 000 MWh/an
+	Profil :
+		Froid industriel constant
+		Process souvent continus
+	Intérêt PV : ⭐⭐⭐⭐⭐
+
+47 – Commerce de détail (alimentaire, GMS)
+	Consommation annuelle :
+		400 à 2 500 MWh/an
+	Profil :
+		Froid = charge permanente
+		Activité week-end élevée
+	Intérêt PV : ⭐⭐⭐⭐☆
+
+93 – Activités sportives et de loisirs
+	Consommation annuelle :
+		300 à 1 500 MWh/an
+	Profil :
+		Très corrélé à l’été
+		Souvent surdimensionné en puissance
+	Intérêt PV : ⭐⭐⭐⭐☆
+
+2. Indicateurs exploitables avec TES DONNÉES ACTUELLES
+
+Tu disposes de :
+	distance à une installation PV (implicite),
+	NAF2,
+	consommation annuelle (kWh/an).
+
+Sans courbe de charge, on peut néanmoins produire un scoring robuste.
+
+2.1. Indicateurs unitaires à calculer
+
+A. Score de stabilité théorique (S_stab)
+
+	Basé uniquement sur le NAF2.
+
+	NAF2	S_stab
+	87	1.00
+	55	0.95
+	86	0.95
+	10	0.90
+	47	0.85
+	93	0.80
+	Autres	0.50 par défaut
+
+B. Score de volume (S_vol)
+
+	Objectif : favoriser les consommateurs ni trop petits, ni trop dominants.
+
+	Exemple de normalisation simple :
+	S_vol = min(1, Consommation_an / 500 000)
+	500 MWh/an = score 1
+	250 MWh/an = 0,5
+	500 MWh/an plafonné à 1
+
+C. Score d’adéquation PV (S_pv)
+
+Basé sur la corrélation saisonnière supposée du secteur avec le solaire.
+
+NAF2	S_pv
+55	1.00
+93	1.00
+47	0.90
+10	0.85
+87	0.85
+86	0.80
+
+2.2. Score global “Potentiel consommateur PV”
+
+Formule recommandée (pondération volontairement lisible) :
+Score_PV = 
+  0.4 × S_stab
++ 0.35 × S_vol
++ 0.25 × S_pv
+Score final ∈ [0 ; 1]
+
+2.3. Interprétation métier
+
+Score ≥ 0,80 → cible PRIORITAIRE (contact immédiat)
+0,65 – 0,80 → bonne cible (agrégation pertinente)
+0,50 – 0,65 → opportuniste
+< 0,50 → faible intérêt PV local
+
+
+############# QUESTIONS / REPONSES
+
+
+Excellente demande ! J'ai bien compris l'objectif d'analyse du potentiel photovoltaïque. Avant de commencer l'implémentation, j'ai quelques questions pour m'assurer de créer exactement ce dont tu as besoin :
+
+1. Seuils des catégories de priorité
+Comment veux-tu définir les seuils de score_PV pour chaque catégorie ?
+
+Très forte : score_PV > ?
+Forte : score_PV > ?
+Moyenne : score_PV > ?
+Faible : score_PV ≤ ?
+Par exemple : Très forte (>0.75), Forte (0.60-0.75), Moyenne (0.45-0.60), Faible (<0.45) ? Oui Ok
+Afin d'affiner ma réponse, pourras-tu ajouter sous l'annalyse, une graphique représentant la distribution du scoring avec en abscice : le scoring et en ordonnées: le nombre de consommateurs ?
+
+2. Emplacement de l'affichage
+Où veux-tu afficher ce tableau d'analyse ?
+
+Dans le Dashboard existant (qui contient déjà les indicateurs de consommateurs) ? Oui
+Dans un nouveau panneau/section dédié ?
+Dans une modale qui s'ouvre à la demande ?
+
+
+3. Filtre circulaire
+Le "disque de sélection" dont tu parles, c'est bien le filtre circulaire draggable (DraggableCircleFilter) qui peut être activé/désactivé ? Oui
+
+4. Scope de l'analyse
+L'analyse doit porter sur :
+
+Les consommateurs visibles sur la carte actuellement (ceux dans les communes sélectionnées + filtres de tranches/catégories) ? Oui
+Uniquement ceux à l'intérieur du cercle draggable quand il est actif ? Oui
+Donc ceux qui sont déjà filtrés soit par les filtres soit par le cercle soit par les deux. Est-ce clair ?
+
+
+5. Filtrage des particuliers
+Comment identifier les entreprises vs particuliers dans la table consommateurs ?
+
+
+Par le champ categorie_activite (exclure "Particulier") ? Oui
+Ou tous les consommateurs avec un code_secteur_naf2 sont considérés comme des entreprises ? Il pourrait y avoir un oubli de code NAF donc non.
+6. Présentation visuelle
+Pour le tableau/schéma, tu préfères :
+
+Un tableau synthétique avec des barres de progression pour les scores ?
+Des cartes colorées par catégorie de priorité ?
+Un mix des deux (cartes récapitulatives + tableau détaillé) ? Oui
+Dis-moi tes préférences et je crée l'implémentation complète !
+
+
+##############
+
+Il faut changer la logique de rapprochement et ne pas le faire au fur et à mesure des requetes API INSEE.
+
+Je te demande d'arrêter cette logique, de faire les corrections qui s'imposent et suivre désormais cette logique ci :
+
+- Losqu'on clique sur un bouton dédié, on émet une requête sur l'API SIRENE uniquement à partir du nom des communes concernées et on insère les données retournées par l'API SIRENE dans une table "societes" 
+  Je te demande de créer la table "societes" en faisant attention à déclarer les bonnes RLS policies
+  Pour définir ses champs il faut prévoir de récupèrer de l'API SIRENE au minimum les champs liées à l'adresse incluant les coordonnées Lambert, ceux liés à l'identification de létablissement incluant entre autre le code NAF complet  
+- Puis on peut alors effectuer le rapprochement avec les consommateurs filtrés 
+
+Enfin, pour information, il se trouve que pour l'API SIRENE je n'ai pas besoin de Client ID et Secret. Le mode est :
+Auth Type → API Key
+Key = X-INSEE-Api-Key-Integration
+Value =b7c7e1b4-998e-4c1d-87e1-b4998e7c1dcf
+Add to → Header ✅ 
+
+As-tu des questions ?
+
+J'ai bien compris la nouvelle logique. Quelques questions avant de commencer :
+
+1. Structure de la table "societes" :
+
+Dois-je lier chaque société à un user_id (données privées par utilisateur) ou les sociétés sont-elles partagées entre tous les utilisateurs (données globales) ? Données globales
+Faut-il un lien avec installation_id ou la table reste indépendante ?
+2. Chargement des données SIRENE :
+
+Le bouton doit charger les sociétés pour quelles communes exactement ?
+Les communes ayant des consommateurs filtrés ?
+Les communes visibles sur la carte ?
+Une sélection manuelle de communes ?
+3. Champs de l'API SIRENE à stocker :
+Je prévois de stocker au minimum :
+
+Identification : siret, siren, denominationUniteLegale, enseigne1Etablissement
+NAF : activitePrincipaleEtablissement (code NAF complet)
+Adresse : numeroVoieEtablissement, typeVoieEtablissement, libelleVoieEtablissement, codePostalEtablissement, codeCommuneEtablissement, libelleCommuneEtablissement
+Coordonnées Lambert : coordonneeLambertAbscisseEtablissement, coordonneeLambertOrdonneeEtablissement
+État : etatAdministratifEtablissement
+Est-ce que cette liste te convient ou veux-tu ajouter/retirer des champs ?
+Merci d'ajouter :
+- trancheEffectifsEtablissement
+- activitePrincipaleNAF25Etablissement
+
+4. Logique de rapprochement :
+Une fois les sociétés chargées, comment veux-tu faire le rapprochement avec les consommateurs ? Par proximité géographique ? Par correspondance d'adresse ?
+Avant tout rapprochement il faudra bien 1. Standardiser les adresses (Minuscules, retirer accents, ponctuation, abréviations (rue → r.). Séparer numéros, type de voie, nom de voie et commune; 2. Calculer des clés de rapprochement possibles : code_commune + numéro + nom_rue_normalisé, code_postal + nom_entreprise, NAF / NAF2 / NAF3 pour filtrer secteur d’activité. et 3. Peut-être ajouter un champ permettant de stocker le résultat du rapprochement. J'aimerais que l'agorithme de rapprochement soit graduel avec tout d'abord une matching exact : adresse + 2 premiers numéro du code NAF puis utiliser ensuite un rapprochement flou avec, dans le cas où les adresses seraient imparfaites : Distance de Levenshtein ou Jaro-Winkler entre nom_voie et libelle_voie de Sirene. Seuil typique : 80–90 % de similarité. Mais toujours avec l'exactitude du code NAF2. Puis enfin un rapprochement géographique avec les distances euclidienne ou Haversine. Je te laisse voir si il faut indexer codes_commune, nom_voie_nomalise, NAF pour accélérer les recherches ; our un grand nombre de consommateurs, faire le rapprochement en batch SQL ou NodeJS avec Map/Reduce plutôt qu’un for séquentiel et Loguer les “non matched” pour les vérifier manuellement ou affiner le scoring.
+As-tu d'autres questions ?
+
+
+
+
+
+
+1. Non tu te trompes de version. Voici pour information un extrait de la documentation de l'API SIRENE, il s'agit bien de la version 3.11:
+
+2. C'est dans la table consommateurs que l'on doit avoir l'id de la societe. Inutile d'ajouter le SIRET qui sera disponible dans la table societes via la référence à l'id et la societe. Et toujours dans la table consommateur que tu ajoute les colonnes siret_matched + match_score + match_method
+
+3. 
+
+
+
+
+
+
+
+
+
+

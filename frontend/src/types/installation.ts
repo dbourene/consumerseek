@@ -12,4 +12,5 @@ export interface Installation {
 export interface ActiveInstallation extends Installation {
   rayon?: number;
   marge?: number;
+  densite?: number;
 }

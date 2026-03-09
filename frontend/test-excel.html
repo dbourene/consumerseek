@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test Excel Export</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <button onclick="testExport()">Test Export Excel</button>
+
+    <script>
+        function testExport() {
+            const workbook = XLSX.utils.book_new();
+
+            // Onglet 1
+            const headers1 = ['authorization_id', 'prm', 'consent_status', 'rgpd_version', 'consent_text_version'];
+            const rows1 = [
+                ['123', '11111111111111', 'ACTIVE', 'v1.0', 'v1.0'],
+                ['456', '22222222222222', 'ACTIVE', 'v1.0', 'v1.0']
+            ];
+            const sheet1 = XLSX.utils.aoa_to_sheet([headers1, ...rows1]);
+            XLSX.utils.book_append_sheet(workbook, sheet1, 'LOGS_CONSENTEMENT');
+
+            // Onglet 2
+            const headers2 = ['prm', 'client_identity', 'revocation_timestamp_utc'];
+            const rows2 = [];  // Vide exprès
+            const sheet2 = XLSX.utils.aoa_to_sheet([headers2, ...rows2]);
+            XLSX.utils.book_append_sheet(workbook, sheet2, 'LOGS_REVOCATION');
+
+            // Onglet 3
+            const headers3 = ['prm', 'consent_timestamp_utc', 'conformity_status'];
+            const rows3 = [
+                ['11111111111111', '2026-03-01', 'CONFORME']
+            ];
+            const sheet3 = XLSX.utils.aoa_to_sheet([headers3, ...rows3]);
+            XLSX.utils.book_append_sheet(workbook, sheet3, 'LOGS_APPELS_API');
+
+            XLSX.writeFile(workbook, 'Test_Export.xlsx');
+            alert('Fichier exporté !');
+        }
+    </script>
+</body>
+</html>

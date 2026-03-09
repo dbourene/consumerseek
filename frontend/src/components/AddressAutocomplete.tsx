@@ -8,6 +8,7 @@ interface AddressAutocompleteProps {
   onSelect: (address: ParsedAddress) => void;
   placeholder?: string;
   className?: string;
+  required?: boolean;
 }
 
 export default function AddressAutocomplete({
@@ -15,7 +16,8 @@ export default function AddressAutocomplete({
   onChange,
   onSelect,
   placeholder = 'Saisir une adresse...',
-  className = ''
+  className = '',
+  required = false
 }: AddressAutocompleteProps) {
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -116,7 +118,8 @@ export default function AddressAutocomplete({
               setShowSuggestions(true);
             }
           }}
-          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          required={required}
+          className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           placeholder={placeholder}
         />
         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">

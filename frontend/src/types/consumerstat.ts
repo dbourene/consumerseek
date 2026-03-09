@@ -4,6 +4,16 @@ export interface Contact {
   consommateur_id?: number;
   entreprise: string;
 
+  // Informations entreprise
+  adresse?: string;
+  code_postal?: string;
+  ville?: string;
+  siret?: string;
+  code_naf?: string;
+  libelle_naf?: string;
+  statut_commande?: string;
+  commentaires?: string;
+
   // Contact 1
   contact1_civilite?: string;
   contact1_nom: string;

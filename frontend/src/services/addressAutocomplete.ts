@@ -15,9 +15,10 @@ export interface AddressSuggestion {
 }
 
 export interface ParsedAddress {
-  adresse: string;
+  street: string;
+  postalCode: string;
+  city: string;
   code_commune: string;
-  nom_commune: string;
   latitude: number;
   longitude: number;
 }
@@ -200,12 +201,13 @@ export function parseAddressSuggestion(suggestion: AddressSuggestion): ParsedAdd
     addressParts.push(suggestion.street);
   }
 
-  const adresse = addressParts.join(' ').trim() || suggestion.label;
+  const street = addressParts.join(' ').trim() || suggestion.label;
 
   return {
-    adresse,
+    street,
+    postalCode: suggestion.postcode || '',
+    city: suggestion.city,
     code_commune: suggestion.citycode,
-    nom_commune: suggestion.city,
     latitude: suggestion.latitude,
     longitude: suggestion.longitude
   };

@@ -38,9 +38,9 @@ export default function AddressValidationModal({
         addr.id === id
           ? {
               ...addr,
-              adresse_corrigee: parsed.adresse,
+              adresse_corrigee: parsed.street,
               code_commune: parsed.code_commune,
-              nom_commune: parsed.nom_commune,
+              nom_commune: parsed.city,
               latitude: parsed.latitude,
               longitude: parsed.longitude,
               isValid: true,

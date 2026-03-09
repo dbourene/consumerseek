@@ -185,7 +185,7 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         from: "ConsumerSeek <onboarding@resend.dev>",
-        to: [contact.contact1_mail1],
+        to: ["dbourene@audencia.com"],
         subject: `Envoi de vos factures d'énergie - ${contact.entreprise}`,
         html: emailHtml,
       }),

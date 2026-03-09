@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { X, Users, FileText, CheckCircle } from 'lucide-react';
+import { X, Users, FileText, CheckCircle, Database } from 'lucide-react';
 import ContactsManager from './ContactsManager';
 import FacturesValidation from './FacturesValidation';
+import PRMValidation from './PRMValidation';
 
 interface ConsumerStatProps {
   onClose: () => void;
   onTestUpload?: (token: string) => void;
 }
 
-type ActiveTab = 'contacts' | 'validation';
+type ActiveTab = 'contacts' | 'factures' | 'prm';
 
 export default function ConsumerStat({ onClose, onTestUpload }: ConsumerStatProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('contacts');
@@ -50,9 +51,9 @@ export default function ConsumerStat({ onClose, onTestUpload }: ConsumerStatProp
             <span>Contacts & Invitations</span>
           </button>
           <button
-            onClick={() => setActiveTab('validation')}
+            onClick={() => setActiveTab('factures')}
             className={`flex items-center space-x-2 px-4 py-3 border-b-2 font-medium transition-colors ${
-              activeTab === 'validation'
+              activeTab === 'factures'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
@@ -60,12 +61,24 @@ export default function ConsumerStat({ onClose, onTestUpload }: ConsumerStatProp
             <CheckCircle className="w-5 h-5" />
             <span>Validation des factures</span>
           </button>
+          <button
+            onClick={() => setActiveTab('prm')}
+            className={`flex items-center space-x-2 px-4 py-3 border-b-2 font-medium transition-colors ${
+              activeTab === 'prm'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Database className="w-5 h-5" />
+            <span>Validation des données</span>
+          </button>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-hidden">
           {activeTab === 'contacts' && <ContactsManager onTestUpload={onTestUpload} />}
-          {activeTab === 'validation' && <FacturesValidation />}
+          {activeTab === 'factures' && <FacturesValidation />}
+          {activeTab === 'prm' && <PRMValidation />}
         </div>
       </div>
     </div>

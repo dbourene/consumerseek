@@ -41,10 +41,10 @@ export function AddressCorrectionTable({ invalidAddresses, onUpdate }: AddressCo
   const handleAddressSelect = (address: AutocompleteAddress) => {
     console.log('🎯 ════════════════════════════════════════');
     console.log('🎯 ADRESSE SÉLECTIONNÉE DANS AUTOCOMPLETE');
-    console.log('🎯 Label:', address.label);
+    console.log('🎯 Street:', address.street);
     console.log('🎯 Objet complet:', JSON.stringify(address, null, 2));
     console.log('🎯 ════════════════════════════════════════');
-    setNewAddress(address.label);
+    setNewAddress(address.street);
     setSelectedAddress(address);
   };
 

@@ -3,12 +3,13 @@ import { supabase } from './supabaseClient';
 import AuthForm from './components/AuthForm';
 import Dashboard from './components/Dashboard';
 import PublicInvoiceUpload from './components/PublicInvoiceUpload';
+import { PublicRevocation } from './components/PublicRevocation';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [route, setRoute] = useState<{ type: 'app' | 'upload', token?: string }>({ type: 'app' });
+  const [route, setRoute] = useState<{ type: 'app' | 'upload' | 'revocation', token?: string }>({ type: 'app' });
 
   const navigateToUpload = (token: string) => {
     setRoute({ type: 'upload', token });
@@ -22,10 +23,14 @@ function App() {
   useEffect(() => {
     const checkRoute = () => {
       const path = window.location.pathname;
-      const match = path.match(/^\/upload\/([a-zA-Z0-9-]+)$/);
+      const params = new URLSearchParams(window.location.search);
+      const uploadMatch = path.match(/^\/upload\/([a-zA-Z0-9-]+)$/);
 
-      if (match) {
-        setRoute({ type: 'upload', token: match[1] });
+      if (uploadMatch) {
+        setRoute({ type: 'upload', token: uploadMatch[1] });
+        setLoading(false);
+      } else if (path === '/revocation' || params.get('token')) {
+        setRoute({ type: 'revocation' });
         setLoading(false);
       } else {
         setRoute({ type: 'app' });
@@ -71,6 +76,10 @@ function App() {
         <div className="text-slate-600">Loading...</div>
       </div>
     );
+  }
+
+  if (route.type === 'revocation') {
+    return <PublicRevocation />;
   }
 
   if (route.type === 'upload' && route.token) {

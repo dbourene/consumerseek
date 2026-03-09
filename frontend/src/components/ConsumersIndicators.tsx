@@ -36,7 +36,7 @@ export default function ConsumersIndicators({
             </div>
             <div>
               <div className="text-sm text-gray-600">
-                Nombre de consommateurs
+                Nombre de sites consommateurs
               </div>
               <div className="text-2xl font-bold text-gray-900">
                 {loading ? (

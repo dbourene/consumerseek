@@ -10,6 +10,7 @@ import CommunesLayer from './CommunesLayer';
 import ConsumersLayer from './ConsumersLayer';
 import ConsumersFilters from './ConsumersFilters';
 import InstallationMarkers from './InstallationMarkers';
+import BusinessMarkersLayer from './BusinessMarkersLayer';
 import { DraggableCircleFilter } from './DraggableCircleFilter';
 import { supabase } from '../supabaseClient';
 import { getRayonReglementaire } from '../utils/densityCategory';
@@ -115,6 +116,8 @@ export default function CarteInstallation({
   const [transparence, setTransparence] = useState(0.4);
   const [fondCarteIndex, setFondCarteIndex] = useState(0);
   const [showFondSelector, setShowFondSelector] = useState(false);
+  const [showCommuneLabels, setShowCommuneLabels] = useState(false);
+  const [showBusinessMarkers, setShowBusinessMarkers] = useState(false);
   const [communesFromInstallations, setCommunesFromInstallations] = useState<Commune[]>([]);
 
   const [installationsInfo, setInstallationsInfo] = useState<Array<{
@@ -150,7 +153,7 @@ export default function CarteInstallation({
             instInfo.push({
               latitude: installation.latitude,
               longitude: installation.longitude,
-              densite: rpcData.commune_installation.dens7
+              densite: installation.densite || rpcData.commune_installation.dens7 || 5
             });
           }
 
@@ -230,6 +233,7 @@ export default function CarteInstallation({
                   densite: resultat.commune_installation?.dens7
                 }
               ] : installationsInfo}
+              showLabels={showCommuneLabels}
             />
           )}
 
@@ -247,6 +251,20 @@ export default function CarteInstallation({
             circleFilterActive={circleFilterActive}
             circleFilterPosition={circleFilterPosition}
           />
+
+          {showBusinessMarkers && (
+            <BusinessMarkersLayer
+              selectedCommuneCodes={
+                resultat
+                  ? [
+                      ...(resultat.commune_installation ? [resultat.commune_installation.codgeo] : []),
+                      ...resultat.communes_dans_rayon.map(c => c.codgeo)
+                    ]
+                  : communesFromInstallations.map(c => c.codgeo)
+              }
+              maxMarkers={200}
+            />
+          )}
 
           {circleFilterActive && circleFilterPosition && activeInstallations.length === 1 && onCircleFilterPositionChange && (
             <DraggableCircleFilter
@@ -279,6 +297,34 @@ export default function CarteInstallation({
               onChange={(e) => setTransparence(parseFloat(e.target.value))}
               className="w-full"
             />
+          </div>
+
+          <div className="bg-white rounded-lg shadow-lg p-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showCommuneLabels}
+                onChange={(e) => setShowCommuneLabels(e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+              />
+              <span className="text-sm font-medium text-slate-700">
+                Noms des communes
+              </span>
+            </label>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-lg p-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showBusinessMarkers}
+                onChange={(e) => setShowBusinessMarkers(e.target.checked)}
+                className="w-4 h-4 text-green-600 border-slate-300 rounded focus:ring-green-500"
+              />
+              <span className="text-sm font-medium text-slate-700">
+                Établissements (zoom 13+)
+              </span>
+            </label>
           </div>
 
           <div className="bg-white rounded-lg shadow-lg">
@@ -326,6 +372,12 @@ export default function CarteInstallation({
               <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(34, 197, 94, 0.6)' }}></div>
               <span>Densité 5-7 (Faible)</span>
             </div>
+            {showBusinessMarkers && (
+              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200">
+                <div className="w-3 h-3 rounded-full bg-green-500 border-2 border-white"></div>
+                <span>Établissements SIRENE</span>
+              </div>
+            )}
           </div>
           {resultat?.commune_installation && (
             <div className="mt-3 pt-3 border-t border-slate-200">
@@ -334,19 +386,6 @@ export default function CarteInstallation({
               </p>
               <p className="text-xs text-slate-600">
                 <strong>Rayon:</strong> {(rayon / 1000).toFixed(0)} km
-              </p>
-              <p className="text-xs text-slate-600">
-                <strong>Communes:</strong> {resultat.communes_dans_rayon.length}
-              </p>
-            </div>
-          )}
-          {!resultat && activeInstallations.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-slate-200">
-              <p className="text-xs text-slate-600">
-                <strong>Installations:</strong> {activeInstallations.length}
-              </p>
-              <p className="text-xs text-slate-600">
-                <strong>Communes:</strong> {communesFromInstallations.length}
               </p>
             </div>
           )}

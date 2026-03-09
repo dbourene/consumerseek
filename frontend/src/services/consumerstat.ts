@@ -354,3 +354,56 @@ export async function getFactureFileUrl(facturePath: string, bucketId: string = 
 
   return data.publicUrl;
 }
+
+// ==================== AUTHORIZATION REQUESTS ====================
+
+export async function createAuthorizationRequest(
+  contactId: string,
+  emailDestinataire: string,
+  messagePersonnalise?: string,
+  expirationJours: number = 30
+): Promise<InvitationFacture | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
+    throw new Error('User not authenticated');
+  }
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const appUrl = window.location.origin;
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/send-authorization-request`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contactId,
+      message: messagePersonnalise,
+      expirationDays: expirationJours,
+      appUrl,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    console.error('Error creating authorization request:', error);
+    throw new Error(error.error || 'Failed to create authorization request');
+  }
+
+  const result = await response.json();
+
+  return {
+    id: result.invitationId,
+    contact_id: contactId,
+    token: result.authorizationUrl.split('/').pop() || '',
+    email_destinataire: emailDestinataire,
+    statut: 'envoyé',
+    date_envoi: new Date().toISOString(),
+    date_expiration: result.expiresAt,
+    message_personnalise: messagePersonnalise,
+    nb_factures_deposees: 0,
+    created_at: new Date().toISOString(),
+  } as InvitationFacture;
+}

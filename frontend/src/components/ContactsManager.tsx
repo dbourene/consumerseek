@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Mail, Edit2, Trash2, Send, Users } from 'lucide-react';
+import { Plus, Mail, Edit2, Trash2, Send, Users, Zap, FileCheck } from 'lucide-react';
 import { getContacts, createContact, updateContact, deleteContact, createInvitation } from '../services/consumerstat';
 import type { Contact } from '../types/consumerstat';
 import ContactForm from './ContactForm';
 import SendInvitationModal from './SendInvitationModal';
+import SendAuthorizationModal from './SendAuthorizationModal';
+import PRMManager from './PRMManager';
 
 interface ContactsManagerProps {
   onTestUpload?: (token: string) => void;
@@ -15,6 +17,8 @@ export default function ContactsManager({ onTestUpload }: ContactsManagerProps =
   const [showForm, setShowForm] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [sendInvitationTo, setSendInvitationTo] = useState<Contact | null>(null);
+  const [sendAuthorizationTo, setSendAuthorizationTo] = useState<Contact | null>(null);
+  const [managingPRMFor, setManagingPRMFor] = useState<Contact | null>(null);
 
   useEffect(() => {
     loadContacts();
@@ -124,6 +128,13 @@ export default function ContactsManager({ onTestUpload }: ContactsManagerProps =
                   </div>
                   <div className="flex space-x-1">
                     <button
+                      onClick={() => setManagingPRMFor(contact)}
+                      className="p-1.5 hover:bg-blue-50 rounded transition-colors"
+                      title="Gérer les PRM"
+                    >
+                      <Zap className="w-4 h-4 text-blue-600" />
+                    </button>
+                    <button
                       onClick={() => handleEdit(contact)}
                       className="p-1.5 hover:bg-gray-100 rounded transition-colors"
                       title="Modifier"
@@ -160,13 +171,22 @@ export default function ContactsManager({ onTestUpload }: ContactsManagerProps =
                   )}
                 </div>
 
-                <button
-                  onClick={() => setSendInvitationTo(contact)}
-                  className="mt-4 w-full flex items-center justify-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <Send className="w-4 h-4" />
-                  <span>Envoyer une invitation</span>
-                </button>
+                <div className="mt-4 space-y-2">
+                  <button
+                    onClick={() => setSendInvitationTo(contact)}
+                    className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>Envoyer une invitation</span>
+                  </button>
+                  <button
+                    onClick={() => setSendAuthorizationTo(contact)}
+                    className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <FileCheck className="w-4 h-4" />
+                    <span>Envoyer une demande d'autorisation</span>
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -191,6 +211,26 @@ export default function ContactsManager({ onTestUpload }: ContactsManagerProps =
             loadContacts();
           }}
           onTestLink={onTestUpload}
+        />
+      )}
+
+      {sendAuthorizationTo && (
+        <SendAuthorizationModal
+          contact={sendAuthorizationTo}
+          onClose={() => setSendAuthorizationTo(null)}
+          onSent={() => {
+            setSendAuthorizationTo(null);
+            loadContacts();
+          }}
+          onTestLink={onTestUpload}
+        />
+      )}
+
+      {managingPRMFor && (
+        <PRMManager
+          contact={managingPRMFor}
+          onClose={() => setManagingPRMFor(null)}
+          onUpdated={loadContacts}
         />
       )}
     </div>
