@@ -93,6 +93,8 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
   const [authFormSubmitting, setAuthFormSubmitting] = useState(false);
   const [authFormSuccess, setAuthFormSuccess] = useState(false);
   const [authFormError, setAuthFormError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [showCloseInstructions, setShowCloseInstructions] = useState(false);
   const [prmRows, setPrmRows] = useState<PRMRow[]>([]);
 
   useEffect(() => {
@@ -470,25 +472,27 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
   };
 
   const validateAuthForm = () => {
-    if (!authFormData.type) return 'Veuillez sélectionner le type de titulaire';
-    if (!authFormData.civilite) return 'Veuillez sélectionner une civilité';
-    if (!authFormData.prenom.trim()) return 'Veuillez saisir votre prénom';
-    if (!authFormData.nom.trim()) return 'Veuillez saisir votre nom';
-    if (!authFormData.email.trim() || !authFormData.email.includes('@')) return 'Veuillez saisir un email valide';
-    if (!authFormData.telephone.trim()) return 'Veuillez saisir votre téléphone';
-    if (!authFormData.adresse.trim()) return 'Veuillez saisir l\'adresse complète';
-    if (!authFormData.codePostal.trim()) return 'Veuillez saisir le code postal';
-    if (!authFormData.ville.trim()) return 'Veuillez saisir la ville';
+    const errors: string[] = [];
+
+    if (!authFormData.type) errors.push('Veuillez sélectionner le type de titulaire');
+    if (!authFormData.civilite) errors.push('Veuillez sélectionner une civilité');
+    if (!authFormData.prenom.trim()) errors.push('Veuillez saisir votre prénom');
+    if (!authFormData.nom.trim()) errors.push('Veuillez saisir votre nom');
+    if (!authFormData.email.trim() || !authFormData.email.includes('@')) errors.push('Veuillez saisir un email valide');
+    if (!authFormData.telephone.trim()) errors.push('Veuillez saisir votre téléphone');
+    if (!authFormData.adresse.trim()) errors.push('Veuillez saisir l\'adresse complète');
+    if (!authFormData.codePostal.trim()) errors.push('Veuillez saisir le code postal');
+    if (!authFormData.ville.trim()) errors.push('Veuillez saisir la ville');
 
     if (authFormData.type === 'professionnel') {
-      if (!authFormData.raisonSociale.trim()) return 'Veuillez saisir la raison sociale';
-      if (!authFormData.formeJuridique.trim()) return 'Veuillez saisir la forme juridique';
+      if (!authFormData.raisonSociale.trim()) errors.push('Veuillez saisir la raison sociale');
+      if (!authFormData.formeJuridique.trim()) errors.push('Veuillez saisir la forme juridique');
       if (!authFormData.siret.trim() || authFormData.siret.replace(/\s/g, '').length !== 14) {
-        return 'Le numéro SIRET doit contenir 14 chiffres';
+        errors.push('Le numéro SIRET doit contenir 14 chiffres');
       }
     }
 
-    if (prmRows.length === 0) return 'Vous devez ajouter au moins un PRM';
+    if (prmRows.length === 0) errors.push('Vous devez ajouter au moins un PRM');
 
     for (let i = 0; i < prmRows.length; i++) {
       const row = prmRows[i];
@@ -496,35 +500,45 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
       if (row.isExisting) continue;
 
       if (!row.prm_numero.trim()) {
-        return `Veuillez saisir le numéro PRM pour le compteur ${i + 1}`;
+        errors.push(`Veuillez saisir le numéro PRM pour le compteur ${i + 1}`);
       }
-      if (row.prm_numero.replace(/\s/g, '').length !== 14) {
-        return `Le numéro PRM du compteur ${i + 1} doit contenir exactement 14 chiffres`;
+      if (row.prm_numero.trim() && row.prm_numero.replace(/\s/g, '').length !== 14) {
+        errors.push(`Le numéro PRM du compteur ${i + 1} doit contenir exactement 14 chiffres`);
       }
-      if (!/^\d+$/.test(row.prm_numero.replace(/\s/g, ''))) {
-        return `Le numéro PRM du compteur ${i + 1} ne doit contenir que des chiffres`;
+      if (row.prm_numero.trim() && !/^\d+$/.test(row.prm_numero.replace(/\s/g, ''))) {
+        errors.push(`Le numéro PRM du compteur ${i + 1} ne doit contenir que des chiffres`);
       }
       if (!row.titulaire_type) {
-        return `Veuillez sélectionner le type de titulaire pour le compteur ${i + 1}`;
+        errors.push(`Veuillez sélectionner le type de titulaire pour le compteur ${i + 1}`);
       }
       if (!row.declarant_role) {
-        return `Veuillez sélectionner le rôle du déclarant pour le compteur ${i + 1}`;
+        errors.push(`Veuillez sélectionner le rôle du déclarant pour le compteur ${i + 1}`);
       }
     }
 
-    if (!authFormData.consentRgpd) return 'Vous devez accepter l\'autorisation RGPD';
-    return null;
+    if (!authFormData.consentRgpd) errors.push('Vous devez accepter l\'autorisation RGPD');
+
+    return errors;
+  };
+
+  const hasFieldError = (fieldKeywords: string[]): boolean => {
+    return validationErrors.some(error =>
+      fieldKeywords.some(keyword => error.toLowerCase().includes(keyword.toLowerCase()))
+    );
   };
 
   const submitAuthForm = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const validationError = validateAuthForm();
-    if (validationError) {
-      setAuthFormError(validationError);
+    const errors = validateAuthForm();
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      setAuthFormError('Veuillez corriger les erreurs ci-dessous avant de soumettre le formulaire');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
+    setValidationErrors([]);
     if (!invitation) return;
 
     try {
@@ -857,9 +871,45 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                 {revocationUrl}
               </a>
             </div>
-            <p className="text-sm text-gray-500">
-              Vous pouvez fermer cette page.
-            </p>
+            <div className="mt-6 space-y-4">
+              {!showCloseInstructions ? (
+                <button
+                  onClick={() => {
+                    const closed = window.close();
+                    setTimeout(() => {
+                      setShowCloseInstructions(true);
+                    }, 100);
+                  }}
+                  className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                >
+                  <X className="w-5 h-5" />
+                  Fermer cette page
+                </button>
+              ) : (
+                <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-5 text-center space-y-3">
+                  <div className="flex justify-center">
+                    <div className="bg-blue-600 rounded-full p-3">
+                      <Info className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                  <p className="text-base font-semibold text-blue-900">
+                    Pour fermer cette page, vous pouvez :
+                  </p>
+                  <div className="space-y-2 text-sm text-blue-800">
+                    <div className="flex items-center justify-center gap-2">
+                      <span>• Utiliser le raccourci clavier</span>
+                      <kbd className="px-3 py-1.5 bg-white border-2 border-blue-300 rounded text-sm font-mono font-bold">
+                        Ctrl + W
+                      </kbd>
+                    </div>
+                    <div className="text-sm text-blue-700">
+                      (ou <kbd className="px-2 py-1 bg-white border border-blue-200 rounded text-xs font-mono">Cmd + W</kbd> sur Mac)
+                    </div>
+                    <p className="mt-3">• Ou cliquer sur la croix (×) de l'onglet en haut de votre navigateur</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       );
@@ -886,10 +936,19 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
             </div>
 
             {authFormError && (
-              <div className="mb-6 p-4 bg-red-50 rounded-lg border border-red-200">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-red-600" />
-                  <p className="text-sm text-red-700">{authFormError}</p>
+              <div className="mb-6 p-4 bg-red-50 rounded-lg border-2 border-red-500">
+                <div className="flex items-start gap-2 mb-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-red-800 mb-2">{authFormError}</p>
+                    {validationErrors.length > 0 && (
+                      <ul className="list-disc list-inside space-y-1">
+                        {validationErrors.map((error, index) => (
+                          <li key={index} className="text-sm text-red-700">{error}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -901,7 +960,9 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
               <select
                 value={authFormData.type}
                 onChange={(e) => handleAuthFormChange('type', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  hasFieldError(['type de titulaire']) ? 'border-red-500 border-2 bg-red-50' : 'border-gray-300'
+                }`}
               >
                 <option value="">Sélectionner</option>
                 <option value="particulier">Particulier</option>
@@ -922,7 +983,9 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                       type="text"
                       value={authFormData.raisonSociale}
                       onChange={(e) => handleAuthFormChange('raisonSociale', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        hasFieldError(['raison sociale']) ? 'border-red-500 border-2 bg-red-50' : 'border-gray-300'
+                      }`}
                       placeholder="Nom de l'entreprise"
                     />
                   </div>
@@ -934,7 +997,9 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                       type="text"
                       value={authFormData.formeJuridique}
                       onChange={(e) => handleAuthFormChange('formeJuridique', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        hasFieldError(['forme juridique']) ? 'border-red-500 border-2 bg-red-50' : 'border-gray-300'
+                      }`}
                       placeholder="SARL, SAS, EURL..."
                     />
                   </div>
@@ -949,7 +1014,9 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                     value={authFormData.siret}
                     onChange={(e) => handleAuthFormChange('siret', e.target.value)}
                     maxLength={14}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      hasFieldError(['SIRET']) ? 'border-red-500 border-2 bg-red-50' : 'border-gray-300'
+                    }`}
                     placeholder="14 chiffres"
                   />
                 </div>
@@ -962,7 +1029,9 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                     type="text"
                     value={authFormData.adresse}
                     onChange={(e) => handleAuthFormChange('adresse', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      hasFieldError(['adresse']) ? 'border-red-500 border-2 bg-red-50' : 'border-gray-300'
+                    }`}
                     placeholder="Numéro et nom de voie"
                   />
                 </div>
@@ -977,7 +1046,9 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                       value={authFormData.codePostal}
                       onChange={(e) => handleAuthFormChange('codePostal', e.target.value)}
                       maxLength={5}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        hasFieldError(['code postal']) ? 'border-red-500 border-2 bg-red-50' : 'border-gray-300'
+                      }`}
                       placeholder="75001"
                     />
                   </div>
@@ -989,7 +1060,9 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                       type="text"
                       value={authFormData.ville}
                       onChange={(e) => handleAuthFormChange('ville', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        hasFieldError(['ville']) ? 'border-red-500 border-2 bg-red-50' : 'border-gray-300'
+                      }`}
                       placeholder="Paris"
                     />
                   </div>
@@ -1010,7 +1083,9 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                   type="text"
                   value={authFormData.adresse}
                   onChange={(e) => handleAuthFormChange('adresse', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    hasFieldError(['adresse']) ? 'border-red-500 border-2 bg-red-50' : 'border-gray-300'
+                  }`}
                   placeholder="Numéro et nom de voie"
                 />
               </div>
@@ -1027,7 +1102,9 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                     value={authFormData.codePostal}
                     onChange={(e) => handleAuthFormChange('codePostal', e.target.value)}
                     maxLength={5}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      hasFieldError(['code postal']) ? 'border-red-500 border-2 bg-red-50' : 'border-gray-300'
+                    }`}
                     placeholder="75001"
                   />
                 </div>
@@ -1039,7 +1116,9 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                     type="text"
                     value={authFormData.ville}
                     onChange={(e) => handleAuthFormChange('ville', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      hasFieldError(['ville']) ? 'border-red-500 border-2 bg-red-50' : 'border-gray-300'
+                    }`}
                     placeholder="Paris"
                   />
                 </div>
@@ -1060,7 +1139,9 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                     <select
                       value={authFormData.civilite}
                       onChange={(e) => handleAuthFormChange('civilite', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        hasFieldError(['civilité']) ? 'border-red-500 border-2 bg-red-50' : 'border-gray-300'
+                      }`}
                     >
                       <option value="">Sélectionner</option>
                       <option value="M.">M.</option>
@@ -1075,7 +1156,9 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                       type="text"
                       value={authFormData.prenom}
                       onChange={(e) => handleAuthFormChange('prenom', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        hasFieldError(['prénom']) ? 'border-red-500 border-2 bg-red-50' : 'border-gray-300'
+                      }`}
                       placeholder="Votre prénom"
                     />
                   </div>
@@ -1089,7 +1172,9 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                     type="text"
                     value={authFormData.nom}
                     onChange={(e) => handleAuthFormChange('nom', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      hasFieldError(['nom']) ? 'border-red-500 border-2 bg-red-50' : 'border-gray-300'
+                    }`}
                     placeholder="Votre nom"
                   />
                 </div>
@@ -1102,7 +1187,9 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                     type="email"
                     value={authFormData.email}
                     onChange={(e) => handleAuthFormChange('email', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      hasFieldError(['email']) ? 'border-red-500 border-2 bg-red-50' : 'border-gray-300'
+                    }`}
                     placeholder="votre@email.com"
                   />
                 </div>
@@ -1115,7 +1202,9 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                     type="tel"
                     value={authFormData.telephone}
                     onChange={(e) => handleAuthFormChange('telephone', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      hasFieldError(['téléphone']) ? 'border-red-500 border-2 bg-red-50' : 'border-gray-300'
+                    }`}
                     placeholder="06 12 34 56 78"
                   />
                 </div>
@@ -1260,6 +1349,8 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                             className={`w-full px-3 py-2 border rounded-lg text-sm ${
                               row.isExisting
                                 ? 'border-green-300 bg-green-50 cursor-not-allowed'
+                                : hasFieldError(['PRM', 'compteur'])
+                                ? 'border-red-500 border-2 bg-red-50 focus:ring-2 focus:ring-red-500'
                                 : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
                             }`}
                             placeholder="14 chiffres"
@@ -1267,9 +1358,15 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                         </div>
                       </div>
 
-                      <div className={`border rounded-lg p-3 mb-3 ${row.isExisting ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'}`}>
+                      <div className={`border rounded-lg p-3 mb-3 ${
+                        row.isExisting
+                          ? 'bg-green-50 border-green-200'
+                          : hasFieldError(['rôle du déclarant', 'compteur'])
+                          ? 'bg-red-50 border-red-500 border-2'
+                          : 'bg-blue-50 border-blue-200'
+                      }`}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Rôle du déclarant pour ce compteur *
+                          Rôle du déclarant pour ce compteur *  (Si vous ne savez pas cochez Mandataire)
                         </label>
                         <div className="space-y-2">
                           <label className="flex items-center gap-2 cursor-pointer">
@@ -1500,7 +1597,9 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
               </div>
             
               {/* Consentement */}
-              <div className="flex items-start space-x-3">
+              <div className={`flex items-start space-x-3 p-3 rounded-lg ${
+                hasFieldError(['RGPD', 'autorisation']) ? 'bg-red-50 border-2 border-red-500' : ''
+              }`}>
                 <input
                   type="checkbox"
                   id="consent"
@@ -1508,7 +1607,9 @@ export default function PublicInvoiceUpload({ token }: PublicInvoiceUploadProps)
                   onChange={(e) =>
                     handleAuthFormChange("consentRgpd", e.target.checked)
                   }
-                  className="mt-1 w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className={`mt-1 w-5 h-5 text-blue-600 rounded focus:ring-blue-500 ${
+                    hasFieldError(['RGPD', 'autorisation']) ? 'border-red-500 border-2' : 'border-gray-300'
+                  }`}
                 />
             
                 <label htmlFor="consent" className="text-sm text-gray-700 leading-relaxed">
