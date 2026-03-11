@@ -28,7 +28,7 @@ export default function ContactForm({ contact, onClose, onSaved }: ContactFormPr
   } | null>(null);
 
   const [formData, setFormData] = useState({
-    entreprise: contact?.entreprise || '',
+    raison_sociale: contact?.raison_sociale || '',
     adresse: contact?.adresse || '',
     code_postal: contact?.code_postal || '',
     ville: contact?.ville || '',
@@ -115,7 +115,7 @@ export default function ContactForm({ contact, onClose, onSaved }: ContactFormPr
         setSiretData(newData);
         setFormData(prev => ({
           ...prev,
-          entreprise: localData.denomination || prev.entreprise,
+          raison_sociale: localData.denomination || prev.raison_sociale,
           adresse: localData.adresse_complete || prev.adresse,
           code_postal: localData.code_postal || prev.code_postal,
           ville: localData.libelle_commune || prev.ville,
@@ -220,7 +220,7 @@ export default function ContactForm({ contact, onClose, onSaved }: ContactFormPr
       setSiretData(newData);
       setFormData(prev => ({
         ...prev,
-        entreprise: denomination || prev.entreprise,
+        raison_sociale: denomination || prev.raison_sociale,
         adresse: adresseComplete || prev.adresse,
         code_postal: codePostal || prev.code_postal,
         ville: commune || prev.ville,
@@ -246,7 +246,7 @@ export default function ContactForm({ contact, onClose, onSaved }: ContactFormPr
 
     try {
       const dataToSave = contactType === 'particulier'
-        ? { ...formData, entreprise: '', siret: '' }
+        ? { ...formData, raison_sociale: '', siret: '' }
         : formData;
 
       if (contact) {
@@ -390,7 +390,7 @@ export default function ContactForm({ contact, onClose, onSaved }: ContactFormPr
                             type="button"
                             onClick={() => {
                               setSiretData(null);
-                              setFormData(prev => ({ ...prev, entreprise: '', adresse: '', code_postal: '', ville: '', code_naf: '', libelle_naf: '' }));
+                              setFormData(prev => ({ ...prev, raison_sociale: '', adresse: '', code_postal: '', ville: '', code_naf: '', libelle_naf: '' }));
                             }}
                             className="text-sm text-green-700 hover:text-green-900 underline"
                           >
@@ -409,7 +409,7 @@ export default function ContactForm({ contact, onClose, onSaved }: ContactFormPr
                         </label>
                         <input
                           type="text"
-                          value={formData.entreprise}
+                          value={formData.raison_sociale}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
                           readOnly
                           disabled

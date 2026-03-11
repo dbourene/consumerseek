@@ -2,7 +2,7 @@ export interface Contact {
   id: string;
   user_id: string;
   consommateur_id?: number;
-  entreprise: string;
+  raison_sociale: string;
 
   // Informations entreprise
   adresse?: string;
